@@ -1,0 +1,140 @@
+body{
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: #cfe6fa !important;
+}
+
+.login-container{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.login-card{
+    width: 380px;
+    height: 90%;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.login-header .logo{
+    width: 110px;
+    height: 110px;
+    background: #ffffff;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 95px;
+    color: #434343;
+    margin: 0 auto 10px;
+}
+
+.logo-header h2{
+    margin: 5px 0;
+}
+
+.logo-header p{
+    color: #7a8ca5;
+    font-size: 14px;
+}
+
+form{
+    margin-top: 20px;
+    text-align: left;
+}
+
+label{
+    font-size: 14px;
+    font-weight: 600;
+    display: block;
+    margin: 15px 0 5px;    
+    color: black;
+}
+
+h2{
+    color: black;
+}
+
+.input-group input,
+select{
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    background: #ffffff;
+    border-radius: 8px;
+    font-size: 14px;
+    color: black;
+}
+
+.input-group2{
+    width: 95%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    background: #ffffff !important;
+    border-radius: 8px;
+    font-size: 14px;
+    color: black;
+}
+
+.input-password{
+    background: #ffffff;
+    border: 1px solid #ccc;
+    width: 94%;
+    padding: 12px;
+    border-radius: 8px;
+    color: black;
+}
+
+.options{
+    margin: 15px 0;
+    font-size: 14px;
+}
+
+.btn-login{
+    margin-top: 20px;
+    width: 100%;
+    padding: 14px;
+    background: #87ceeb;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-login:hover{
+    background: #00bfff;
+}
+
+.footer a {
+    color: white !important;
+    text-decoration: none;
+}
+
+.btn-menu-principal{
+    margin-top: 5px;
+    background: #ed5f5f !important;
+    color:white !important;
+    text-decoration: none;
+    width: 100%;
+    height: 40px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 14px;
+    cursor: pointer;
+    border: none;
+}
+
+.btn-menu-principal:hover{
+    background: #d9534f !important;
+    color:white !important;
+    text-decoration: none;
+}

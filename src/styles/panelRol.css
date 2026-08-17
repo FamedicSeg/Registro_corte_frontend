@@ -1,0 +1,747 @@
+/* ============================================
+   VARIABLES ERP (ESTILO CORPORATIVO)
+   ============================================ */
+
+:root {
+  --primary-color: #ffffff;
+  --secondary-color: #2563eb;
+
+  --success-color: #16a34a;
+  --warning-color: #f59e0b;
+  --danger-color: #dc2626;
+
+  --bg-main: #f5f7fb;
+  --bg-card: #ffffff;
+  --border-color: #e5e7eb;
+
+  --text-main: #111827;
+  --text-secondary: #6b7280;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+
+  --transition: all 0.2s ease;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-main);
+  color: var(--text-main);
+}
+
+/* ============================================
+   PANEL
+   ============================================ */
+
+.panel-container {
+  padding: 20px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-card);
+  padding: 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  margin-bottom: 24px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.panel-header > div:first-child {
+  flex: 1;
+  min-width: 200px;
+}
+
+.panel-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.panel-header h3 {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  letter-spacing: 0.5px;
+}
+
+.panel-header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* ============================================
+   BOTONES ERP
+   ============================================ */
+
+.panel-btn {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.panel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.panel-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.panel-btn-view {
+  background: linear-gradient(135deg, #287391 0%, #05466f 100%);
+  color: white;
+}
+
+.panel-btn-success {
+  background: linear-gradient(135deg, #16a34a 0%, #059669 100%);
+  color: white;
+}
+
+.panel-btn-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.panel-btn-danger {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+}
+
+.panel-btn-logout {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+}
+
+.btn-logout {
+  display: flex;
+  justify-content: flex-end;
+  transform: translateX(-30px) translateY(-70px);
+}
+
+.panel-btn-rechazar{
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+  padding: 10px 15px;
+  display: flex;
+  align-items: center;
+}
+
+.panel-rol-titulos{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  transform: translateX(15px);
+  font-family:Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+}
+
+.panel-rol-titulos h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-main);
+  font-family:Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+}
+
+.panel-rol-table{
+  display: flex;
+  flex-direction: column;
+  padding: 12px 20px;
+  border: 1px solid #000000;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+.panel-rol-head{
+  display:flex;
+  background: linear-gradient(135deg, #6f9fc9 0%, #2985b4 100%);
+  color: white;
+  font-size: 0.875rem;       /* 14px */
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 16px 24px;
+  border-radius: 6px 6px 0 0;       /* el borde lo da el contenedor */
+  gap: 8px;
+}
+
+.panel-rol-head th{
+  flex: 1;
+  padding: 0px 30px;
+  text-align: center;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-rol-body{
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 0px;
+  text-align: center !important;
+  justify-content: center !important;
+}
+
+.panel-rol-body tr{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 10px;
+  gap: 8px;
+}
+
+.panel-rol-body td{
+  flex: 1;
+  padding: 5px 5px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* ============================================
+   CARDS RESUMEN (ESTILO ERP)
+   ============================================ */
+
+.panel-summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.panel-summary-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.panel-summary-card:hover {
+  border-color: var(--primary-color);
+}
+
+.panel-summary-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.panel-summary-value {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+/* Indicadores laterales */
+.panel-summary-card-total {
+  border-left: 4px solid #6b7280;
+}
+
+.panel-summary-card-aprobados {
+  border-left: 4px solid var(--success-color);
+}
+
+.panel-summary-card-pendiente-supervisor {
+  border-left: 4px solid var(--warning-color);
+}
+
+.panel-summary-card-pendiente-analista {
+  border-left: 4px solid var(--primary-color);
+}
+
+/* ============================================
+   FILTROS
+   ============================================ */
+
+.panel-filtros-estado {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.panel-estado-filter-btn {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: white;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.panel-estado-filter-btn.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* ============================================
+   TABLA ERP
+   ============================================ */
+
+.panel-table-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  padding: 15px;
+}
+
+.panel-table-scroll {
+  overflow-x: auto;
+}
+
+.panel-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.panel-data-table th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 14px;
+  text-align: left;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.panel-data-table td {
+  padding: 14px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+}
+
+.panel-data-table tbody tr {
+  transition: var(--transition);
+}
+
+.panel-data-table tbody tr:hover {
+  background: #f9fafb;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.02);
+}
+
+.panel-data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ============================================
+   ESTADOS
+   ============================================ */
+
+.panel-estado {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  text-transform: capitalize;
+}
+
+.panel-estado.aprobado,
+.panel-estado.aprob {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.panel-estado.pendiente,
+.panel-estado.pendiente_supervisor {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.panel-estado.pendiente_analista_produccion,
+.panel-estado.analista {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.panel-estado.rechazado {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ============================================
+   INTERNAS (INSUMOS, MAQUINAS, ETC)
+   ============================================ */
+
+.panel-insumo-box,
+.panel-etiquetas-box,
+.panel-integrantes-box,
+.panel-maquinas-box {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 10px;
+  background: #fafafa;
+  transition: var(--transition);
+}
+
+.panel-insumo-box:hover,
+.panel-etiquetas-box:hover,
+.panel-integrantes-box:hover,
+.panel-maquinas-box:hover {
+  border-color: var(--primary-color);
+  background: #ffffff;
+}
+
+/* HEADER INTERNO */
+.panel-insumo-header,
+.panel-etiquetas-header,
+.panel-integrantes-header,
+.panel-maquinas-header {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: var(--primary-color);
+}
+
+/* GRID INTERNO */
+.panel-insumo-grid,
+.panel-etiquetas-grid,
+.panel-integrantes-grid,
+.panel-maquinas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  font-size: 12px;
+}
+
+/* ============================================
+   ACTIVIDADES
+   ============================================ */
+
+.panel-actividad-item {
+  background: #f9fafb;
+  border: 1px solid var(--border-color);
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.panel-actividad-planif {
+  background: #dbeafe;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.panel-actividad-elab {
+  background: #dcfce7;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.panel-data-table .estado-tb{
+  max-width: 250px !important;
+  padding: 6px 12px;
+  text-align: center;
+  border-radius: 12px;
+  font-size: 11px;
+}
+/* ============================================
+   TOTALES
+   ============================================ */
+
+.panel-total-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  margin-bottom: 5px;
+}
+
+.panel-total-item .total-valor {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+/* ============================================
+   SCROLL
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 5px;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .panel-summary-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   DISEÑO ESPECÍFICO PARA SAMSUNG GALAXY TAB A (8.0", 2019)
+   Resolución: 1200x1920 (portrait) / 1920x1200 (landscape)
+   DPI: ~283 ppi
+   ============================================ */
+
+/* Modo Portrait (vertical) - 1200x1920 */
+@media only screen and (min-width: 800px) and (max-width: 1200px) and (min-height: 1200px) and (max-height: 1920px) {
+  
+  .panel-container {
+    padding: 16px;
+  }
+
+  .panel-header {
+    padding: 16px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .panel-header > div:first-child {
+    text-align: center;
+  }
+
+  .panel-header h2 {
+    font-size: 22px; 
+  }
+
+  .panel-header h3 {
+    font-size: 11px;
+  }
+
+  .panel-header-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .panel-btn {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  /* Cards resumen en grid de 2 columnas */
+  .panel-summary-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .panel-summary-card {
+    padding: 14px;
+  }
+
+  .panel-summary-value {
+    font-size: 24px;
+  }
+
+  /* Filtros horizontales scrollables */
+  .panel-filtros-estado {
+    overflow-x: auto;
+    padding-bottom: 8px;
+    gap: 8px;
+  }
+
+  .panel-estado-filter-btn {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  /* Tabla con fuente más grande para mejor legibilidad */
+  .panel-data-table th,
+  .panel-data-table td {
+    padding: 12px 10px;
+    font-size: 12px;
+  }
+
+  .panel-data-table th {
+    font-size: 12px;
+  }
+
+  /* Aumentar tamaño de celdas de estado */
+  .panel-estado {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+
+  /* Grids internos a 2 columnas */
+  .panel-insumo-grid,
+  .panel-etiquetas-grid,
+  .panel-integrantes-grid,
+  .panel-maquinas-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+
+/* Modo Landscape (horizontal) - 1920x1200 */
+@media only screen and (min-width: 1201px) and (max-width: 1920px) and (min-height: 800px) and (max-height: 1200px) {
+  
+  .panel-container {
+    padding: 24px;
+  }
+
+  .panel-header {
+    padding: 18px 24px;
+    flex-direction: row;
+  }
+
+  .panel-header h2 {
+    font-size: 20px;
+  }
+
+  .panel-header h3 {
+    font-size: 12px;
+  }
+
+  /* 4 cards horizontales */
+  .panel-summary-row {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .panel-summary-card {
+    padding: 14px;
+  }
+
+  .panel-summary-value {
+    font-size: 28px;
+  }
+
+  /* Tabla más compacta pero legible */
+  .panel-data-table th,
+  .panel-data-table td {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  /* Grids internos a 3 columnas */
+  .panel-insumo-grid,
+  .panel-etiquetas-grid,
+  .panel-integrantes-grid,
+  .panel-maquinas-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  /* Botones más pequeños en landscape */
+  .panel-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+}
+
+/* Ajustes específicos para navegadores Samsung Internet */
+@media only screen and (min-device-width: 800px) and (max-device-width: 1200px) and (-webkit-min-device-pixel-ratio: 2) {
+  
+  /* Mejorar legibilidad de textos */
+  body {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Aumentar contraste en botones táctiles */
+  .panel-btn {
+    min-height: 44px; /* Tamaño mínimo táctil recomendado */
+  }
+
+  .panel-estado-filter-btn {
+    min-height: 36px;
+  }
+
+  /* Mejorar hover states para pantallas táctiles */
+  .panel-summary-card:active,
+  .panel-data-table tbody tr:active {
+    background: #f3f4f6;
+    transform: scale(0.99);
+  }
+
+  /* Eliminar hover que puede ser molesto en táctil */
+  .panel-btn:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .panel-summary-card:hover {
+    border-color: var(--border-color);
+  }
+
+  /* Scroll más suave para tablas */
+  .panel-table-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Espaciado para elementos clickeables */
+  .panel-insumo-box,
+  .panel-etiquetas-box,
+  .panel-integrantes-box,
+  .panel-maquinas-box {
+    cursor: pointer;
+  }
+}
+
+/* Ajuste para pantallas muy pequeñas (menos de 800px de ancho) */
+@media only screen and (max-width: 799px) and (min-width: 600px) {
+  .panel-summary-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .panel-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .panel-header-actions {
+    justify-content: center;
+  }
+
+  .panel-data-table th,
+  .panel-data-table td {
+    padding: 10px 8px;
+    font-size: 11px;
+  }
+}
+
+/* Soporte para orientación automática en Galaxy Tab A */
+@media only screen and (orientation: portrait) and (min-width: 800px) and (max-width: 1200px) {
+  .panel-container {
+    padding: 16px 20px;
+  }
+}
+
+@media only screen and (orientation: landscape) and (min-width: 1200px) and (max-width: 1920px) {
+  .panel-table-scroll {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+}
