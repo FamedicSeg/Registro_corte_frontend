@@ -91,7 +91,7 @@ p{
 
 .grid{
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 20px;
     justify-items: center;
 }
@@ -369,7 +369,7 @@ p{
 
 .tabla-header {
     display: grid;
-    grid-template-columns: repeat(12, 1fr) 60px;
+    grid-template-columns: repeat(13, 1fr) 60px;
     gap: 5px;
     margin-bottom: 4px;
     align-items: center;
@@ -383,7 +383,7 @@ p{
 
 .fila-tabla {
     display: grid;
-    grid-template-columns: repeat(12, 1fr) 60px;
+    grid-template-columns: repeat(13, 1fr) 60px;
     gap: 5px;
     padding: 4px 10px;
     border-bottom: 1px solid #e0e0e0;
@@ -612,8 +612,7 @@ p{
     cursor: pointer;
     font-size: 13px;
     height: 28px;
-    transform: translateX(105px);
-    width: 55%;
+    width: 36px;
     transition: background 0.2s;
 }
 

@@ -6,30 +6,6 @@ import logoSafemed from "../assets/safemedic.png";
 //import { v4 as uuidv4 } from "uuid";
 import { toUpperCase, shouldUpperCase } from "../utils/textUtils";
 
-{/*
-const MODULO_TO_HOJA = {
-    "MODULO 1":"MODULO 1",
-    "MODULO 2":"MODULO 2",
-    "MODULO 3":"MODULO 3",
-    "MODULO 4":"MODULO 4",
-    "MODULO 6":"MODULO 6",
-    "MODULO 7":"MODULO 7",
-    "MODULO 8":"MODULO 8",
-    "MODULO 10":"MODULO 10",
-    "VARIOS 1":"VARIOS 1",
-    "VARIOS 2":"VARIOS 2",
-    "VARIOS 3": "VARIOS 3",
-    "ESTAMPADO":"ESTAMPADO",
-    "BOTAS SIMPLES":"BOTAS SIMPLES",
-    "SPA":"SPA",
-    "MASCARILLAS":"MASCARILLAS",
-    "GPA":"GPA",
-    "SELLADO":"SELLADO",
-    "CORTE": "CORTE",
-    "METBLOWN":"METBLOWN"   
-}
-    */}
-
 export default function Registro() {
     const nav = useNavigate();
     
@@ -50,14 +26,14 @@ export default function Registro() {
     const [responsables, setResponsables] = useState([]);
 
     useEffect(() => {
-        api.get('/api/onedrive/responsables')
+        api.get('/onedrive/responsables')
             .then(({ data }) => setResponsables(data.data || []))
             .catch(() => {});
     }, []);
 
     useEffect(() => {
         if (!form.modulo) return; 
-        api.post('/api/onedrive/lideres-por-modulo', { modulo: form.modulo })
+        api.post('/onedrive/lideres-por-modulo', { modulo: form.modulo })
             .then(({ data }) => setLideresFiltrados(data.data || []))
             .catch(() => setLideresFiltrados([]));
     }, [form.modulo]);
@@ -97,26 +73,30 @@ export default function Registro() {
     };*/}
 
     // Al salir del campo LOTE, crea filas automáticas para cada producto CF del lote
-    const buscarProductosPorLote = async (cf, rowIndex, setter) => {
-        if (!cf.trim()) return;
-        try {
-            const { data } = await api.post('/api/onedrive/buscar-productos-por-lote', { cf });
-            if (data.data && data.data.length > 0) {
-                setter(prev => {
-                    const antes = prev.slice(0, rowIndex);
-                    const despues = prev.slice(rowIndex + 1);
-                    const nuevas = data.data.map(p => ({
-                        ...INITIAL_ROW,
-                        cf: cf,
-                        codigo: p.codigo,
-                        producto: p.descripcion
-                    }));
-                    return [...antes, ...nuevas, ...despues];
-                });
-            }
-        } catch {
-            // lote no encontrado o error de red
+    const buscarProductosPorLote = async (codigoProducto, rowIndex, setter) => {
+        if (!codigoProducto.trim()) return;
+        try {   
+            const { data } = await api.get('/productos/test', {
+                params: { codigo: codigoProducto.trim() }
+            });
+            if (data && data.length > 0) {
+            setter(prev => {
+                const antes = prev.slice(0, rowIndex);
+                const despues = prev.slice(rowIndex + 1);
+
+                const nuevas = data.map(p => ({
+                    ...INITIAL_ROW,
+                    cf: p.codigo,
+                    codigo: codigoProducto,
+                    producto: p.descripcion
+                }));
+
+                return [...antes, ...nuevas, ...despues];
+            });
         }
+    } catch {
+        // Error consultando los CF
+    }
     };
 
     const removeRow = (index) => {
@@ -141,14 +121,6 @@ export default function Registro() {
         setRows2(prev => prev.map((row, i) => i === index ? { ...row, [name]: valorFinal } : row));
     };
 
-    {/*}
-    const hoy = new Date();
-    const yyyy = hoy.getFullYear();
-    const mm = String(hoy.getMonth() + 1).padStart(2, "0");
-    const dd = String(hoy.getDate()).padStart(2, "0");
-    const fechaHoy = `${yyyy}-${mm}-${dd}`;
-    */}
-
     const handleGuardar = async (e) => {
         e.preventDefault();
 
@@ -171,7 +143,7 @@ export default function Registro() {
 
         setGuardando(true);
         try {
-            await api.post('/api/registros', {
+            await api.post('/registros', {
                 ...form,
                 registros_corte:    rowsValidas,
                 cambios_produccion: rows2Validas,
@@ -276,27 +248,28 @@ export default function Registro() {
                             <option value="METBLOWN">METBLOWN</option>
                         </select>
                     </div>
+                    <div className="form-group">
+                            <label htmlFor="responsable_modulo"> RESPONSABLE MODULO: </label>
+                            <select id = "responsable_modulo" name= "responsable_modulo"
+                                value={form.responsable_modulo || ""}
+                                onChange={onChange}
+                                disabled={!form.modulo}
+                                //onChange={(e) => onChange({ target: { name: e.target.name, value: e.target.value.toUpperCase() } })}
+                                className="selector-responsable-modulo"
+                            >
+                                <option value="">SELECCIONA EL RESPONSABLE DEL MÓDULO...</option>
+                                {lideresFiltrados.map((lider, idx) => (
+                                    <option key={idx} value={lider}>
+                                        {lider}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                 </div>
                 </div>
                 <div className="cabecera">
                     <div className="grid2">
-                        <div className="form-group">
-                        <label htmlFor="responsable_modulo"> RESPONSABLE MODULO: </label>
-                        <select id = "responsable_modulo" name= "responsable_modulo"
-                            value={form.responsable_modulo || ""}
-                            onChange={onChange}
-                            disabled={!form.modulo}
-                            //onChange={(e) => onChange({ target: { name: e.target.name, value: e.target.value.toUpperCase() } })}
-                            className="selector-responsable-modulo"
-                        >
-                            <option value="">SELECCIONA EL RESPONSABLE DEL MÓDULO...</option>
-                            {lideresFiltrados.map((lider, idx) => (
-                                <option key={idx} value={lider}>
-                                    {lider}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                        
                     <div className= "form-group">
                         <label htmlFor="responsable"> RESPONSABLE: </label>
                         <select id="responsable" name="responsable" value={form.responsable} onChange={onChange} style={{fontSize: "12px"}} className="selector-responsable">
@@ -313,16 +286,6 @@ export default function Registro() {
                             <option value="Morales Collaguazo Gabriela Alexandra">Morales Collaguazo Gabriela Alexandra</option>
                             <option value="Vera Baque Angelica Maria">Vera Baque Angelica Maria</option>
                         </select>
-
-                    </div>
-                </div>
-                </div>
-                
-                <div className="cabecera">
-                    <div className="grid3">
-                    <div className="form-group">
-                        <label htmlFor="numero_importacion">NÚMERO DE IMPORTACIÓN: </label>
-                        <input type="text" id="numero_importacion" name="numero_importacion" value={form.numero_importacion || ""} onChange={onChange} style={{fontSize: "12px", backgroundColor: "#ffffff", border: "1px solid #616060", borderRadius: "4px", height: "30px"}}/>
                     </div>
                     <div className="form-group">
                         <label htmlFor="mesa_corte">MESA DE CORTE: </label>
@@ -334,6 +297,7 @@ export default function Registro() {
                     </div>
                 </div>
                 </div>
+                
 
                 {/* La Tabla de los registros de corte */}
                 <div className="tabla-registros">
@@ -351,6 +315,7 @@ export default function Registro() {
                                     <th>CÓDIGO PR.</th>
                                     <th>CÓDIGO CF</th>
                                     <th>PRODUCTO</th>
+                                    <th>N° DE IMPORTACIÓN</th>
                                     <th>CANT. TENDIDOS</th>
                                     <th>CANT. UNIDADES</th>
                                     <th>TIPO DE TELA</th>
@@ -368,12 +333,13 @@ export default function Registro() {
                                         <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange(index, e)} className="td-input-cf" /></td>
                                         <td><input type="text" name="codigo" value={row.codigo} onChange={(e) => onRowChange(index, e)} onBlur={(e) => buscarProductosPorLote(e.target.value, index, setRows)} placeholder="Ingresa Ej: BCD-003" className="td-input-codigo" /></td>
                                         <td><input type="text" name="producto" value={row.producto} onChange={(e) => onRowChange(index, e)} className="td-input td-input-producto" placeholder="Autocompletado automático" /></td>
-                                        <td><input type="number" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
-                                        <td><input type="number" name="cantidad_unidades" value={row.cantidad_unidades} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
+                                        <td><input type="text" name="numero_importacion" value={form.numero_importacion} onChange={onChange} className="td-input td-input-num" /></td>
+                                        <td><input type="text" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
+                                        <td><input type="text" name="cantidad_unidades" value={row.cantidad_unidades} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
                                         <td><input type="text" name="tipo_tela" value={row.tipo_tela} onChange={(e) => onRowChange(index, e)} className="td-input" /></td>
                                         <td><input type="text" name="numero_rollo" value={row.numero_rollo} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" /></td>
                                         <td><input type="date" name="fecha_entrega" value={row.fecha_entrega} onChange={(e) => onRowChange(index, e)} className="td-input-fecha" /></td>
-                                        <td><input type="number" name="cantidad_entregada" value={row.cantidad_entregada} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
+                                        <td><input type="text" name="cantidad_entregada" value={row.cantidad_entregada} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
                                         <td><button type="button" onClick={() => removeRow(index)} className="btn-eliminar-fila" disabled={rows.length === 1}>✕</button></td>
                                     </tr>
                                 ))}
@@ -397,6 +363,7 @@ export default function Registro() {
                                     <th>CF</th>
                                     <th>CÓDIGO</th>
                                     <th>PRODUCTO</th>
+                                    <th>N° DE IMPORTACIÓN</th>
                                     <th>CANT. TENDIDOS</th>
                                     <th>CANT. UNIDADES</th>
                                     <th>TIPO DE TELA</th>
@@ -414,12 +381,13 @@ export default function Registro() {
                                         <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange2(index, e)} className="td-input-cf" /></td>
                                         <td><input type="text" name="codigo" value={row.codigo} onChange={(e) => onRowChange2(index, e)} onBlur={(e) => buscarProductosPorLote(e.target.value, index, setRows2)} placeholder="Ingresa Ej: BCD-003" className="td-input-codigo" /></td>
                                         <td><input type="text" name="producto" value={row.producto} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-producto td-input-readonly" readOnly placeholder="Autocompletado automático" /></td>
-                                        <td><input type="number" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>
-                                        <td><input type="number" name="cantidad_unidades" value={row.cantidad_unidades} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>
+                                        <td><input type="text" name="numero_importacion" value={row.numero_importacion} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" /></td>
+                                        <td><input type="text" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>
+                                        <td><input type="text" name="cantidad_unidades" value={row.cantidad_unidades} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>
                                         <td><input type="text" name="tipo_tela" value={row.tipo_tela} onChange={(e) => onRowChange2(index, e)} className="td-input" /></td>
                                         <td><input type="text" name="numero_rollo" value={row.numero_rollo} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" /></td>
                                         <td><input type="date" name="fecha_entrega" value={row.fecha_entrega} onChange={(e) => onRowChange2(index, e)} className="td-input-fecha" /></td>
-                                        <td><input type="number" name="cantidad_entregada" value={row.cantidad_entregada} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>
+                                        <td><input type="text" name="cantidad_entregada" value={row.cantidad_entregada} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>
                                         <td><button type="button" onClick={() => removeRow2(index)} className="btn-eliminar-fila" disabled={rows2.length === 1}>✕</button></td>
                                     </tr>
                                 ))}
