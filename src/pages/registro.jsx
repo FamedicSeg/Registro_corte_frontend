@@ -26,14 +26,14 @@ export default function Registro() {
     const [responsables, setResponsables] = useState([]);
 
     useEffect(() => {
-        api.get('/onedrive/responsables')
+        api.get('/api/onedrive/responsables')
             .then(({ data }) => setResponsables(data.data || []))
             .catch(() => {});
     }, []);
 
     useEffect(() => {
         if (!form.modulo) return; 
-        api.post('/onedrive/lideres-por-modulo', { modulo: form.modulo })
+        api.post('/api/onedrive/lideres-por-modulo', { modulo: form.modulo })
             .then(({ data }) => setLideresFiltrados(data.data || []))
             .catch(() => setLideresFiltrados([]));
     }, [form.modulo]);
@@ -76,7 +76,7 @@ export default function Registro() {
     const buscarProductosPorLote = async (codigoProducto, rowIndex, setter) => {
         if (!codigoProducto.trim()) return;
         try {   
-            const { data } = await api.get('/productos/test', {
+            const { data } = await api.get('/api/productos/test', {
                 params: { codigo: codigoProducto.trim() }
             });
             if (data && data.length > 0) {
