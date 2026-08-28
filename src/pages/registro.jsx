@@ -41,11 +41,14 @@ export default function Registro() {
     const INITIAL_ROW = {
         fecha: "",
         lote_materia_prima: "",
+        cf: "",
         codigo: "",
         producto: "",
+        numero_importacion: "",
         cantidad_tendidos: "",
         cantidad_unidades: "",
         tipo_tela: "",
+        descripcion_tipo_tela: "",
         numero_rollo: "",
         fecha_entrega: "",
         cantidad_entregada: "",
@@ -72,31 +75,36 @@ export default function Registro() {
         }
     };*/}
 
-    // Al salir del campo LOTE, crea filas automáticas para cada producto CF del lote
-    const buscarProductosPorLote = async (codigoProducto, rowIndex, setter) => {
-        if (!codigoProducto.trim()) return;
-        try {   
-            const { data } = await api.get('/api/productos/test', {
-                params: { codigo: codigoProducto.trim() }
-            });
-            if (data && data.length > 0) {
-            setter(prev => {
-                const antes = prev.slice(0, rowIndex);
-                const despues = prev.slice(rowIndex + 1);
-
-                const nuevas = data.map(p => ({
-                    ...INITIAL_ROW,
-                    cf: p.codigo,
-                    codigo: codigoProducto,
-                    producto: p.descripcion
-                }));
-
-                return [...antes, ...nuevas, ...despues];
-            });
+    // Al salir del producto, crea una fila por cada CF y por cada insumo TEL.
+    const buscarProductosPorLote = async (codigo, rowIndex, setter) => {
+        if (!codigo.trim()) return;
+        try {
+            const { data } = await api.post('/api/onedrive/buscar-productos-por-lote', { codigo });
+            if (data.data && data.data.length > 0) {
+                setter(prev => {
+                    const antes = prev.slice(0, rowIndex);
+                    const despues = prev.slice(rowIndex + 1);
+                    const filaOrigen = prev[rowIndex] || INITIAL_ROW;
+                    const nuevas = data.data.flatMap(cfItem => {
+                        const insumos = cfItem.insumos?.length ? cfItem.insumos : [null];
+                        return insumos.map(insumo => ({
+                            ...INITIAL_ROW,
+                            fecha: filaOrigen.fecha,
+                            lote_materia_prima: filaOrigen.lote_materia_prima,
+                            cf: cfItem.codigo,
+                            numero_importacion: filaOrigen.numero_importacion,
+                            codigo,
+                            producto: cfItem.descripcion || cfItem.codigo || "",
+                            tipo_tela: insumo?.codigo || "NO APLICA",
+                            descripcion_tipo_tela: insumo?.descripcion || "NO APLICA"
+                        }));
+                    });
+                    return [...antes, ...nuevas, ...despues];
+                });
+            }
+        } catch {
+            // lote no encontrado o error de red
         }
-    } catch {
-        // Error consultando los CF
-    }
     };
 
     const removeRow = (index) => {
@@ -121,6 +129,14 @@ export default function Registro() {
         setRows2(prev => prev.map((row, i) => i === index ? { ...row, [name]: valorFinal } : row));
     };
 
+    {/*}
+    const hoy = new Date();
+    const yyyy = hoy.getFullYear();
+    const mm = String(hoy.getMonth() + 1).padStart(2, "0");
+    const dd = String(hoy.getDate()).padStart(2, "0");
+    const fechaHoy = `${yyyy}-${mm}-${dd}`;
+    */}
+
     const handleGuardar = async (e) => {
         e.preventDefault();
 
@@ -128,13 +144,15 @@ export default function Registro() {
             setMsg("Error: Debes seleccionar el turno y el módulo.");
             return;
         }
-        if (!form.numero_importacion?.trim()) {
+        const rowsValidas  = rows.filter(r => r.fecha || r.lote_materia_prima);
+        const rows2Validas = rows2.filter(r => r.fecha || r.lote_materia_prima);
+
+        const filas = [...rowsValidas, ...rows2Validas];
+        const numeroImportacion = filas.find((row) => row.numero_importacion?.trim())?.numero_importacion || "";
+        if (!numeroImportacion.trim()) {
             setMsg("Error: Debes ingresar el Número de Importación.");
             return;
         }
-
-        const rowsValidas  = rows.filter(r => r.fecha || r.lote_materia_prima);
-        const rows2Validas = rows2.filter(r => r.fecha || r.lote_materia_prima);
 
         if (rowsValidas.length === 0 && rows2Validas.length === 0) {
             setMsg("Error: Debes completar al menos una fila de datos.");
@@ -143,8 +161,9 @@ export default function Registro() {
 
         setGuardando(true);
         try {
-            await api.post('/registros', {
+            await api.post('/api/registros', {
                 ...form,
+                numero_importacion: numeroImportacion,
                 registros_corte:    rowsValidas,
                 cambios_produccion: rows2Validas,
             });
@@ -249,27 +268,26 @@ export default function Registro() {
                         </select>
                     </div>
                     <div className="form-group">
-                            <label htmlFor="responsable_modulo"> RESPONSABLE MODULO: </label>
-                            <select id = "responsable_modulo" name= "responsable_modulo"
-                                value={form.responsable_modulo || ""}
-                                onChange={onChange}
-                                disabled={!form.modulo}
-                                //onChange={(e) => onChange({ target: { name: e.target.name, value: e.target.value.toUpperCase() } })}
-                                className="selector-responsable-modulo"
-                            >
-                                <option value="">SELECCIONA EL RESPONSABLE DEL MÓDULO...</option>
-                                {lideresFiltrados.map((lider, idx) => (
-                                    <option key={idx} value={lider}>
-                                        {lider}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        <label htmlFor="responsable_modulo"> RESPONSABLE MODULO: </label>
+                        <select id = "responsable_modulo" name= "responsable_modulo"
+                            value={form.responsable_modulo || ""}
+                            onChange={onChange}
+                            disabled={!form.modulo}
+                            //onChange={(e) => onChange({ target: { name: e.target.name, value: e.target.value.toUpperCase() } })}
+                            className="selector-responsable-modulo"
+                        >
+                            <option value="">SELECCIONA EL RESPONSABLE DEL MÓDULO...</option>
+                            {lideresFiltrados.map((lider, idx) => (
+                                <option key={idx} value={lider}>
+                                    {lider}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
                 </div>
                 <div className="cabecera">
                     <div className="grid2">
-                        
                     <div className= "form-group">
                         <label htmlFor="responsable"> RESPONSABLE: </label>
                         <select id="responsable" name="responsable" value={form.responsable} onChange={onChange} style={{fontSize: "12px"}} className="selector-responsable">
@@ -297,7 +315,6 @@ export default function Registro() {
                     </div>
                 </div>
                 </div>
-                
 
                 {/* La Tabla de los registros de corte */}
                 <div className="tabla-registros">
@@ -312,13 +329,14 @@ export default function Registro() {
                                 <tr>
                                     <th>FECHA</th>
                                     <th>LOTE MATERIA PRIMA</th>
-                                    <th>CÓDIGO PR.</th>
+                                    <th>CÓDIGO</th>
                                     <th>CÓDIGO CF</th>
                                     <th>PRODUCTO</th>
                                     <th>N° DE IMPORTACIÓN</th>
                                     <th>CANT. TENDIDOS</th>
                                     <th>CANT. UNIDADES</th>
                                     <th>TIPO DE TELA</th>
+                                    <th>DESCRIPCIÓN TELA</th>
                                     <th>N° ROLLO</th>
                                     <th>FECHA ENTREGA</th>
                                     <th>CANT. ENTREGADA</th>
@@ -330,16 +348,17 @@ export default function Registro() {
                                     <tr key={index}>
                                         <td><input type="date" name="fecha" value={row.fecha} onChange={(e) => onRowChange(index, e)} className="td-input-fecha" /></td>
                                         <td><input type="text" name="lote_materia_prima" value={row.lote_materia_prima} onChange={(e) => onRowChange(index, e)} className="td-input" /></td>
+                                        <td><input type="text" name="codigo" value={row.codigo} onChange={(e) => onRowChange(index, e)} onBlur={(e) => buscarProductosPorLote(e.target.value, index, setRows)} placeholder="Ingresa Ej: EQE-047" className="td-input-codigo" readOnly={Boolean(row.cf)} /></td>
                                         <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange(index, e)} className="td-input-cf" /></td>
-                                        <td><input type="text" name="codigo" value={row.codigo} onChange={(e) => onRowChange(index, e)} onBlur={(e) => buscarProductosPorLote(e.target.value, index, setRows)} placeholder="Ingresa Ej: BCD-003" className="td-input-codigo" /></td>
                                         <td><input type="text" name="producto" value={row.producto} onChange={(e) => onRowChange(index, e)} className="td-input td-input-producto" placeholder="Autocompletado automático" /></td>
-                                        <td><input type="text" name="numero_importacion" value={form.numero_importacion} onChange={onChange} className="td-input td-input-num" /></td>
-                                        <td><input type="text" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
-                                        <td><input type="text" name="cantidad_unidades" value={row.cantidad_unidades} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
+                                        <td><input type="text" name="numero_importacion" value={row.numero_importacion} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" /></td>
+                                        <td><input type="number" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
+                                        <td><input type="number" name="cantidad_unidades" value={row.cantidad_unidades} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
                                         <td><input type="text" name="tipo_tela" value={row.tipo_tela} onChange={(e) => onRowChange(index, e)} className="td-input" /></td>
+                                        <td><input type="text" name="descripcion_tipo_tela" value={row.descripcion_tipo_tela} onChange={(e) => onRowChange(index, e)} className="td-input td-input-producto"/></td>
                                         <td><input type="text" name="numero_rollo" value={row.numero_rollo} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" /></td>
                                         <td><input type="date" name="fecha_entrega" value={row.fecha_entrega} onChange={(e) => onRowChange(index, e)} className="td-input-fecha" /></td>
-                                        <td><input type="text" name="cantidad_entregada" value={row.cantidad_entregada} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
+                                        <td><input type="number" name="cantidad_entregada" value={row.cantidad_entregada} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
                                         <td><button type="button" onClick={() => removeRow(index)} className="btn-eliminar-fila" disabled={rows.length === 1}>✕</button></td>
                                     </tr>
                                 ))}
@@ -360,13 +379,14 @@ export default function Registro() {
                                 <tr>
                                     <th>FECHA</th>
                                     <th>LOTE MATERIA PRIMA</th>
-                                    <th>CF</th>
                                     <th>CÓDIGO</th>
+                                    <th>CÓDIGO CF</th>
                                     <th>PRODUCTO</th>
                                     <th>N° DE IMPORTACIÓN</th>
                                     <th>CANT. TENDIDOS</th>
                                     <th>CANT. UNIDADES</th>
                                     <th>TIPO DE TELA</th>
+                                    <th>DESCRIPCIÓN TELA</th>
                                     <th>N° ROLLO</th>
                                     <th>FECHA ENTREGA</th>
                                     <th>CANT. ENTREGADA</th>
@@ -378,16 +398,17 @@ export default function Registro() {
                                     <tr key={index}>
                                         <td><input type="date" name="fecha" value={row.fecha} onChange={(e) => onRowChange2(index, e)} className="td-input-fecha" /></td>
                                         <td><input type="text" name="lote_materia_prima" value={row.lote_materia_prima} onChange={(e) => onRowChange2(index, e)} className="td-input" /></td>
+                                        <td><input type="text" name="codigo" value={row.codigo} onChange={(e) => onRowChange2(index, e)} onBlur={(e) => buscarProductosPorLote(e.target.value, index, setRows2)} placeholder="Ingresa Ej: EQE-047" className="td-input-codigo" readOnly={Boolean(row.cf)} /></td>
                                         <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange2(index, e)} className="td-input-cf" /></td>
-                                        <td><input type="text" name="codigo" value={row.codigo} onChange={(e) => onRowChange2(index, e)} onBlur={(e) => buscarProductosPorLote(e.target.value, index, setRows2)} placeholder="Ingresa Ej: BCD-003" className="td-input-codigo" /></td>
                                         <td><input type="text" name="producto" value={row.producto} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-producto td-input-readonly" readOnly placeholder="Autocompletado automático" /></td>
                                         <td><input type="text" name="numero_importacion" value={row.numero_importacion} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" /></td>
-                                        <td><input type="text" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>
-                                        <td><input type="text" name="cantidad_unidades" value={row.cantidad_unidades} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>
+                                        <td><input type="number" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>
+                                        <td><input type="number" name="cantidad_unidades" value={row.cantidad_unidades} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>
                                         <td><input type="text" name="tipo_tela" value={row.tipo_tela} onChange={(e) => onRowChange2(index, e)} className="td-input" /></td>
+                                        <td><input type="text" name="descripcion_tipo_tela" value={row.descripcion_tipo_tela} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-producto" /></td>
                                         <td><input type="text" name="numero_rollo" value={row.numero_rollo} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" /></td>
                                         <td><input type="date" name="fecha_entrega" value={row.fecha_entrega} onChange={(e) => onRowChange2(index, e)} className="td-input-fecha" /></td>
-                                        <td><input type="text" name="cantidad_entregada" value={row.cantidad_entregada} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>
+                                        <td><input type="number" name="cantidad_entregada" value={row.cantidad_entregada} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>
                                         <td><button type="button" onClick={() => removeRow2(index)} className="btn-eliminar-fila" disabled={rows2.length === 1}>✕</button></td>
                                     </tr>
                                 ))}

@@ -20,7 +20,8 @@ export default function EditarRegistro() {
   };
   const INITIAL_ROW = {
     fecha: "", lote_materia_prima: "", cf: "", codigo: "", producto: "",
-    cantidad_tendidos: "", cantidad_unidades: "", tipo_tela: "",
+    numero_importacion: "",
+    cantidad_tendidos: "", cantidad_unidades: "", tipo_tela: "", descripcion_tipo_tela: "",
     numero_rollo: "", fecha_entrega: "", cantidad_entregada: "",
   };
   const esSupervisor = user?.rol === "SUPERVISOR DE CORTE";
@@ -80,7 +81,14 @@ export default function EditarRegistro() {
           rechazado_por:      data.rechazado_por      || "",
           fecha_rechazo:      data.fecha_rechazo      || "",
         });
-        const parseRows = (v) => (Array.isArray(v) && v.length > 0 ? v : [{ ...INITIAL_ROW }]);
+        const parseRows = (v) => {
+          if (!Array.isArray(v) || v.length === 0) return [{ ...INITIAL_ROW }];
+          return v.map((row) => ({
+            ...INITIAL_ROW,
+            ...row,
+            numero_importacion: row.numero_importacion ?? data.numero_importacion ?? "",
+          }));
+        };
         setRows(parseRows(data.registros_corte));
         setRows2(parseRows(data.cambios_produccion));
       } catch (err) {
@@ -118,16 +126,33 @@ export default function EditarRegistro() {
   const addRow2    = () => setRows2(prev => [...prev, { ...INITIAL_ROW }]);
   const removeRow2 = (i) => { if (rows2.length > 1) setRows2(prev => prev.filter((_, idx) => idx !== i)); };
 
-  const buscarProductosPorLote = async (cf, rowIndex, setter) => {
-    if (!cf.trim()) return;
+  const buscarProductosPorLote = async (codigo, rowIndex, setter) => {
+    if (!codigo.trim()) return;
     try {
-      const { data } = await api.post("/api/onedrive/buscar-productos-por-lote", { cf });
+      const { data } = await api.post("/api/onedrive/buscar-productos-por-lote", { codigo });
       if (data.data?.length > 0) {
-        setter(prev => [
-          ...prev.slice(0, rowIndex),
-          ...data.data.map(p => ({ ...INITIAL_ROW, cf, codigo: p.codigo, producto: p.descripcion })),
-          ...prev.slice(rowIndex + 1),
-        ]);
+        setter(prev => {
+          const filaOrigen = prev[rowIndex] || INITIAL_ROW;
+          const nuevas = data.data.flatMap(cfItem => {
+            const insumos = cfItem.insumos?.length ? cfItem.insumos : [null];
+            return insumos.map(insumo => ({
+              ...INITIAL_ROW,
+              fecha: filaOrigen.fecha,
+              lote_materia_prima: filaOrigen.lote_materia_prima,
+              cf: cfItem.codigo,
+              numero_importacion: filaOrigen.numero_importacion,
+              codigo,
+              producto: cfItem.descripcion || cfItem.codigo || "",
+              tipo_tela: insumo?.codigo || "NO APLICA",
+              descripcion_tipo_tela: insumo?.descripcion || "NO APLICA",
+            }));
+          });
+          return [
+            ...prev.slice(0, rowIndex),
+            ...nuevas,
+            ...prev.slice(rowIndex + 1),
+          ];
+        });
       }
     } catch { /* sin conexión a onedrive */ }
   };
@@ -269,14 +294,7 @@ export default function EditarRegistro() {
           <div className="grid">
             <div className="form-group">
               <label htmlFor="turno">TURNO:</label>
-              <select
-                id="turno"
-                name="turno"
-                value={form.turno}
-                onChange={onChange}
-                className="selector-turno"
-                required
-              >
+              <select id="turno" name="turno" value={form.turno} onChange={onChange} className="selector-turno" required>
                 <option value="">SELECCIONE EL TURNO...</option>
                 <option value="1">1</option>
                 <option value="2">2</option>
@@ -284,14 +302,7 @@ export default function EditarRegistro() {
             </div>
             <div className="form-group">
               <label htmlFor="modulo">MÓDULO:</label>
-              <select
-                id="modulo"
-                name="modulo"
-                value={form.modulo}
-                onChange={onChange}
-                className="selector-modulo"
-                required
-              >
+              <select id="modulo" name="modulo" value={form.modulo} onChange={onChange} className="selector-modulo" required>
                 <option value="">SELECCIONE EL MÓDULO...</option>
                 <option value="MODULO 1">MODULO 1</option>
                 <option value="MODULO 2">MODULO 2</option>
@@ -314,22 +325,9 @@ export default function EditarRegistro() {
                 <option value="METBLOWN">METBLOWN</option>
               </select>
             </div>
-          </div>
-        </div>
-
-        <div className="cabecera">
-          <div className="grid2">
             <div className="form-group">
               <label htmlFor="responsable_modulo">RESPONSABLE MÓDULO:</label>
-              <select
-                id="responsable_modulo"
-                name="responsable_modulo"
-                value={form.responsable_modulo || ""}
-                onChange={onChange}
-                disabled={!form.modulo}
-                className="selector-responsable-modulo"
-                required
-              >
+              <select id="responsable_modulo" name="responsable_modulo" value={form.responsable_modulo || ""} onChange={onChange} disabled={!form.modulo} className="selector-responsable-modulo" required>
                 <option value="">SELECCIONA EL RESPONSABLE DEL MÓDULO...</option>
                 {lideresFiltrados.map((lider, idx) => (
                   <option key={idx} value={lider}>
@@ -338,16 +336,14 @@ export default function EditarRegistro() {
                 ))}
               </select>
             </div>
+          </div>
+        </div>
+
+        <div className="cabecera">
+          <div className="grid2">
             <div className="form-group">
               <label htmlFor="responsable">RESPONSABLE:</label>
-              <select
-                id="responsable"
-                name="responsable"
-                value={form.responsable}
-                onChange={onChange}
-                className="selector-responsable"
-                required
-              >
+              <select id="responsable" name="responsable" value={form.responsable} onChange={onChange} className="selector-responsable" required>
                 <option value="">SELECCIONA AL RESPONSABLE...</option>
                 {responsables.map((resp, idx) => (
                   <option key={idx} value={resp}>
@@ -358,34 +354,10 @@ export default function EditarRegistro() {
             </div>
             <div className="form-group">
               <label htmlFor="supervisor">SUPERVISOR DE CORTE:</label>
-              <select
-                id="supervisor"
-                name="supervisor"
-                value={form.supervisor}
-                onChange={onChange}
-                className="selector-supervisor"
-                required
-              >
+              <select id="supervisor" name="supervisor" value={form.supervisor} onChange={onChange} className="selector-supervisor" required>
                 <option value="">SELECCIONA AL SUPERVISOR DE CORTE...</option>
                 <option value="Morales Collaguazo Gabriela Alexandra">Morales Collaguazo Gabriela Alexandra</option>
               </select>
-
-            </div>
-          </div>
-        </div>
-
-        <div className="cabecera">
-          <div className="grid3">
-            <div className="form-group">
-              <label htmlFor="numero_importacion">NÚMERO DE IMPORTACIÓN:</label>
-              <input
-                type="text"
-                id="numero_importacion"
-                name="numero_importacion"
-                value={form.numero_importacion || ""}
-                onChange={onChange}
-                className="input-text"
-              />
             </div>
             <div className="form-group">
               <label htmlFor="mesa_corte">MESA DE CORTE:</label>
@@ -413,9 +385,9 @@ export default function EditarRegistro() {
             <table className="tabla-datos">
               <thead>
                 <tr>
-                  <th>FECHA</th><th>LOTE MATERIA PRIMA</th><th>CF</th><th>CÓDIGO</th>
-                  <th>PRODUCTO</th><th>CANT. TENDIDOS</th><th>CANT. UNIDADES</th>
-                  <th>TIPO DE TELA</th><th>N° ROLLO</th><th>FECHA ENTREGA</th>
+                  <th>FECHA</th><th>LOTE MATERIA PRIMA</th><th>CÓDIGO</th><th>CÓDIGO CF</th>
+                  <th>PRODUCTO</th><th>N° DE IMPORTACIÓN</th><th>CANT. TENDIDOS</th><th>CANT. UNIDADES</th>
+                  <th>TIPO DE TELA</th><th>DESCRIPCIÓN TELA</th><th>N° ROLLO</th><th>FECHA ENTREGA</th>
                   <th>CANT. ENTREGADA</th>{puedeEditar && <th>ACCIONES</th>}
                 </tr>
               </thead>
@@ -424,12 +396,14 @@ export default function EditarRegistro() {
                   <tr key={index}>
                     <td><input type="date" name="fecha" value={row.fecha} onChange={(e) => onRowChange(index, e)} className="td-input-fecha" disabled={!puedeEditar} /></td>
                     <td><input type="text" name="lote_materia_prima" value={row.lote_materia_prima} onChange={(e) => onRowChange(index, e)} className="td-input" disabled={!puedeEditar} /></td>
-                    <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange(index, e)} className="td-input-cf" disabled={!puedeEditar} /></td>
-                    <td><input type="text" name="codigo" value={row.codigo} onChange={(e) => onRowChange(index, e)} onBlur={(e) => puedeEditar && buscarProductosPorLote(e.target.value, index, setRows)} className="td-input-codigo" disabled={!puedeEditar} /></td>
+                    <td><input type="text" name="codigo" value={row.codigo} placeholder="Ingresa Ej: EQE-047" onChange={(e) => onRowChange(index, e)} onBlur={(e) => puedeEditar && buscarProductosPorLote(e.target.value, index, setRows)} className="td-input-codigo" disabled={!puedeEditar} /></td>
+                    <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange(index, e)} className="td-input-cf" disabled={!puedeEditar} readOnly /></td>
                     <td><input type="text" name="producto" value={row.producto} onChange={(e) => onRowChange(index, e)} className="td-input td-input-producto" disabled={!puedeEditar} /></td>
+                    <td><input type="text" name="numero_importacion" value={row.numero_importacion} onChange={(e) => onRowChange(index, e)} className="td-input" disabled={!puedeEditar} /></td>
                     <td><input type="number" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" disabled={!puedeEditar} /></td>
                     <td><input type="number" name="cantidad_unidades" value={row.cantidad_unidades} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" disabled={!puedeEditar} /></td>
                     <td><input type="text" name="tipo_tela" value={row.tipo_tela} onChange={(e) => onRowChange(index, e)} className="td-input" disabled={!puedeEditar} /></td>
+                    <td><input type="text" name="descripcion_tipo_tela" value={row.descripcion_tipo_tela} className="td-input td-input-producto" readOnly /></td>
                     <td><input type="text" name="numero_rollo" value={row.numero_rollo} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" disabled={!puedeEditar} /></td>
                     <td><input type="date" name="fecha_entrega" value={row.fecha_entrega} onChange={(e) => onRowChange(index, e)} className="td-input-fecha" disabled={!puedeEditar} /></td>
                     <td><input type="number" name="cantidad_entregada" value={row.cantidad_entregada} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" disabled={!puedeEditar} /></td>
@@ -453,9 +427,9 @@ export default function EditarRegistro() {
             <table className="tabla-datos">
               <thead>
                 <tr>
-                  <th>FECHA</th><th>LOTE MATERIA PRIMA</th><th>CF</th><th>CÓDIGO</th>
-                  <th>PRODUCTO</th><th>CANT. TENDIDOS</th><th>CANT. UNIDADES</th>
-                  <th>TIPO DE TELA</th><th>N° ROLLO</th><th>FECHA ENTREGA</th>
+                  <th>FECHA</th><th>LOTE MATERIA PRIMA</th><th>CÓDIGO</th><th>CÓDIGO CF</th>
+                  <th>PRODUCTO</th><th>N° DE IMPORTACIÓN</th><th>CANT. TENDIDOS</th><th>CANT. UNIDADES</th>
+                  <th>TIPO DE TELA</th><th>DESCRIPCIÓN TELA</th><th>N° ROLLO</th><th>FECHA ENTREGA</th>
                   <th>CANT. ENTREGADA</th>{puedeEditar && <th>ACCIONES</th>}
                 </tr>
               </thead>
@@ -464,12 +438,14 @@ export default function EditarRegistro() {
                   <tr key={index}>
                     <td><input type="date" name="fecha" value={row.fecha} onChange={(e) => onRowChange2(index, e)} className="td-input-fecha" disabled={!puedeEditar} /></td>
                     <td><input type="text" name="lote_materia_prima" value={row.lote_materia_prima} onChange={(e) => onRowChange2(index, e)} className="td-input" disabled={!puedeEditar} /></td>
-                    <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange2(index, e)} className="td-input-cf" disabled={!puedeEditar} /></td>
-                    <td><input type="text" name="codigo" value={row.codigo} onChange={(e) => onRowChange2(index, e)} onBlur={(e) => puedeEditar && buscarProductosPorLote(e.target.value, index, setRows2)} className="td-input-codigo" disabled={!puedeEditar} /></td>
+                    <td><input type="text" name="codigo" value={row.codigo} placeholder="Ingresa Ej: EQE-047" onChange={(e) => onRowChange2(index, e)} onBlur={(e) => puedeEditar && buscarProductosPorLote(e.target.value, index, setRows2)} className="td-input-codigo" disabled={!puedeEditar} /></td>
+                    <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange2(index, e)} className="td-input-cf" disabled={!puedeEditar}/></td>
                     <td><input type="text" name="producto" value={row.producto} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-producto" disabled={!puedeEditar} /></td>
+                    <td><input type="text" name="numero_importacion" value={row.numero_importacion} onChange={(e) => onRowChange2(index, e)} className="td-input" disabled={!puedeEditar}/></td>
                     <td><input type="number" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" disabled={!puedeEditar} /></td>
                     <td><input type="number" name="cantidad_unidades" value={row.cantidad_unidades} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" disabled={!puedeEditar} /></td>
                     <td><input type="text" name="tipo_tela" value={row.tipo_tela} onChange={(e) => onRowChange2(index, e)} className="td-input" disabled={!puedeEditar} /></td>
+                    <td><input type="text" name="descripcion_tipo_tela" value={row.descripcion_tipo_tela} className="td-input td-input-producto"/></td>
                     <td><input type="text" name="numero_rollo" value={row.numero_rollo} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" disabled={!puedeEditar} /></td>
                     <td><input type="date" name="fecha_entrega" value={row.fecha_entrega} onChange={(e) => onRowChange2(index, e)} className="td-input-fecha" disabled={!puedeEditar} /></td>
                     <td><input type="number" name="cantidad_entregada" value={row.cantidad_entregada} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" disabled={!puedeEditar} /></td>
