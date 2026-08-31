@@ -357,6 +357,10 @@ p{
     min-width: 300px;
 }
 
+.tabla-datos thead th:nth-child(2){
+    min-width: 200px;
+}
+
 .tabla-datos thead th:nth-child(5) {
     min-width: 210px;
 }

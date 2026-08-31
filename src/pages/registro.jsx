@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
-import { api } from "../services/api";
+import { api, obtenerLotesMateriaPrima } from "../services/api";
 import "../styles/registro.css";
 import { useNavigate } from "react-router-dom";
 import logoSafemed from "../assets/safemedic.png";
 //import { v4 as uuidv4 } from "uuid";
 import { toUpperCase, shouldUpperCase } from "../utils/textUtils";
+
+let rowSequence = 0;
+
+const createRowId = () => {
+    rowSequence += 1;
+    return `row-${rowSequence}`;
+};
 
 export default function Registro() {
     const nav = useNavigate();
@@ -53,57 +60,175 @@ export default function Registro() {
         fecha_entrega: "",
         cantidad_entregada: "",
     };
-    const [rows, setRows] = useState([{ ...INITIAL_ROW }]);
-    const [rows2, setRows2] = useState([{ ...INITIAL_ROW }]);
+    const [rows, setRows] = useState([{ ...INITIAL_ROW, id: "row-inicial-1" }]);
+    const [rows2, setRows2] = useState([{ ...INITIAL_ROW, id: "row-inicial-2" }]);
 
-    const addRow = () => setRows(prev => [...prev, { ...INITIAL_ROW }]);
+    const addRow = () => setRows(prev => [...prev, { ...INITIAL_ROW, id: createRowId() }]);
 
-    const addRow2 = () => setRows2(prev => [...prev, { ...INITIAL_ROW }]);
+    const addRow2 = () => setRows2(prev => [...prev, { ...INITIAL_ROW, id: createRowId() }]);
 
-    {/*
-    const buscarProducto = async (codigo, rowIndex, setter) => {
-        if (!codigo.trim()) return;
+    const esCodigoCf = (codigo = "") => {
+        const valor = String(codigo || "").trim().toUpperCase();
+        return /^CF(?:[-\s_]*[A-Z0-9]+)+$/.test(valor);
+    };
+
+    const obtenerInsumosDelCf = (cfItem) => {
+        if (!cfItem) return [null];
+
+        const raw = cfItem.insumos || cfItem.insumo || cfItem.detalle?.insumos || cfItem.detalle?.insumo || [];
+
+        if (Array.isArray(raw)) return raw.length ? raw : [null];
+        if (raw) return [raw];
+        return [null];
+    };
+
+    const normalizarInsumos = (insumos = []) => {
+        const lista = obtenerInsumosDelCf({ insumos });
+        return lista.filter(Boolean);
+    };
+
+    const extraerCodigosTela = (valor = "") => {
+        const texto = String(valor || "").trim();
+        if (!texto) return [];
+
+        const partes = texto.split(/[\/|,]/).map(item => item.trim()).filter(Boolean);
+        const codigos = partes.flatMap(item => item.split(/\s+/).filter(Boolean));
+        return [...new Set(codigos.filter(item => /^TEL/i.test(item)))];
+    };
+
+    const poblarLotesDesdeTipoTela = async (tipoTela = "", setter, rowIndex) => {
+        const codigos = extraerCodigosTela(tipoTela);
+        if (!codigos.length) return;
+
+        const lotesRespuesta = await Promise.all(
+            codigos.map(async (codigoTela) => {
+                const resultados = await obtenerLotesMateriaPrima(codigoTela);
+                return Array.isArray(resultados) ? resultados.filter(Boolean) : [];
+            })
+        );
+
+        const lotesUnicos = [...new Set(lotesRespuesta.flat())];
+        if (!lotesUnicos.length) return;
+
+        setter(prev => prev.map((row, i) => i === rowIndex ? { ...row, lote_materia_prima: lotesUnicos.join(' / ') } : row));
+    };
+
+    const buscarProductosPorLote = async (codigo, rowIndex, setter, origen = "codigo") => {
+        const codigoBuscado = String(codigo || "").trim();
+        if (!codigoBuscado) return;
+
         try {
-            const { data } = await api.post('/api/onedrive/buscar-producto', { productoId: codigo });
-            if (data.encontrado) {
-                setter(prev => prev.map((row, i) =>
-                    i === rowIndex ? { ...row, producto: data.data.descripcion } : row
-                ));
+            if (esCodigoCf(codigoBuscado)) {
+                const { data } = await api.post('/api/onedrive/buscar-producto', { productoId: codigoBuscado });
+                const cfItem = data?.data && typeof data.data === 'object' && !Array.isArray(data.data)
+                    ? data.data
+                    : Array.isArray(data?.data)
+                        ? data.data.find(item => String(item.codigo || item.cf || "").toUpperCase() === codigoBuscado.toUpperCase()) || data.data[0]
+                        : data?.item || data || null;
+
+                if (!cfItem) return;
+
+                const insumos = normalizarInsumos(cfItem.insumos || []);
+                const tipoTela = insumos.map(item => item.codigo || "NO APLICA").join(' / ') || 'NO APLICA';
+                const descripcionTela = insumos.map(item => item.descripcion || item.nombre || "").filter(Boolean).join(' / ') || 'NO APLICA';
+
+                if (insumos.length > 1 && origen === 'cf') {
+                    const filaOrigen = rows[rowIndex] || INITIAL_ROW;
+                    const nuevas = await Promise.all(insumos.map(async (insumo, index) => {
+                        const lotes = await obtenerLotesMateriaPrima(insumo?.codigo || "");
+                        const loteFinal = Array.isArray(lotes) ? [...new Set(lotes.filter(Boolean))].join(' / ') : "";
+
+                        return {
+                            ...INITIAL_ROW,
+                            id: createRowId(),
+                            fecha: filaOrigen.fecha,
+                            lote_materia_prima: loteFinal,
+                            cf: cfItem.codigo || codigoBuscado,
+                            codigo: filaOrigen.codigo || codigoBuscado,
+                            producto: cfItem.descripcion || cfItem.nombre || cfItem.producto || cfItem.codigo || "",
+                            tipo_tela: insumo?.codigo || "NO APLICA",
+                            descripcion_tipo_tela: insumo?.descripcion || insumo?.nombre || "NO APLICA",
+                            numero_importacion: filaOrigen.numero_importacion,
+                            ...(index === 0 ? { cantidad_tendidos: filaOrigen.cantidad_tendidos, cantidad_unidades: filaOrigen.cantidad_unidades, numero_rollo: filaOrigen.numero_rollo, fecha_entrega: filaOrigen.fecha_entrega, cantidad_entregada: filaOrigen.cantidad_entregada } : {})
+                        };
+                    }));
+
+                    setter(prev => {
+                        const antes = prev.slice(0, rowIndex);
+                        const despues = prev.slice(rowIndex + 1);
+                        return [...antes, ...nuevas, ...despues];
+                    });
+                    return;
+                }
+
+                setter(prev => prev.map((row, i) => {
+                    if (i !== rowIndex) return row;
+
+                    const codigoActual = origen === 'cf' ? row.codigo : codigoBuscado;
+
+                    return {
+                        ...row,
+                        cf: cfItem.codigo || codigoBuscado,
+                        codigo: codigoActual,
+                        producto: cfItem.descripcion || cfItem.nombre || cfItem.producto || cfItem.codigo || "",
+                        tipo_tela: tipoTela,
+                        descripcion_tipo_tela: descripcionTela,
+                    };
+                }));
+
+                await poblarLotesDesdeTipoTela(tipoTela, setter, rowIndex);
+                return;
             }
-        } catch {
-            // código no encontrado o error de red, se deja vacío
-        }
-    };*/}
 
-    // Al salir del producto, crea una fila por cada CF y por cada insumo TEL.
-    const buscarProductosPorLote = async (codigo, rowIndex, setter) => {
-        if (!codigo.trim()) return;
-        try {
-            const { data } = await api.post('/api/onedrive/buscar-productos-por-lote', { codigo });
-            if (data.data && data.data.length > 0) {
+            const { data } = await api.post('/api/onedrive/buscar-productos-por-lote', { codigo: codigoBuscado });
+            const items = Array.isArray(data?.data) ? data.data : [];
+
+            if (items.length > 0) {
+                const nuevas = await Promise.all(items.flatMap(async (cfItem) => {
+                    const insumos = normalizarInsumos(cfItem.insumos || []);
+                    if (insumos.length === 0) {
+                        return [{
+                            ...INITIAL_ROW,
+                            id: createRowId(),
+                            fecha: "",
+                            lote_materia_prima: "",
+                            cf: cfItem.codigo,
+                            codigo: codigoBuscado,
+                            producto: cfItem.descripcion || cfItem.codigo || "",
+                            tipo_tela: "NO APLICA",
+                            descripcion_tipo_tela: "NO APLICA",
+                        }];
+                    }
+
+                    const filasPorCf = await Promise.all(insumos.map(async (insumo) => {
+                        const codigoTela = insumo?.codigo || "";
+                        const lotes = codigoTela ? await obtenerLotesMateriaPrima(codigoTela) : [];
+                        const loteFinal = Array.isArray(lotes) ? [...new Set(lotes.filter(Boolean))].join(' / ') : "";
+
+                        return {
+                            ...INITIAL_ROW,
+                            id: createRowId(),
+                            fecha: "",
+                            lote_materia_prima: loteFinal,
+                            cf: cfItem.codigo,
+                            codigo: codigoBuscado,
+                            producto: cfItem.descripcion || cfItem.codigo || "",
+                            tipo_tela: codigoTela || "NO APLICA",
+                            descripcion_tipo_tela: insumo?.descripcion || insumo?.nombre || "NO APLICA",
+                        };
+                    }));
+
+                    return filasPorCf;
+                }));
+
                 setter(prev => {
                     const antes = prev.slice(0, rowIndex);
                     const despues = prev.slice(rowIndex + 1);
-                    const filaOrigen = prev[rowIndex] || INITIAL_ROW;
-                    const nuevas = data.data.flatMap(cfItem => {
-                        const insumos = cfItem.insumos?.length ? cfItem.insumos : [null];
-                        return insumos.map(insumo => ({
-                            ...INITIAL_ROW,
-                            fecha: filaOrigen.fecha,
-                            lote_materia_prima: filaOrigen.lote_materia_prima,
-                            cf: cfItem.codigo,
-                            numero_importacion: filaOrigen.numero_importacion,
-                            codigo,
-                            producto: cfItem.descripcion || cfItem.codigo || "",
-                            tipo_tela: insumo?.codigo || "NO APLICA",
-                            descripcion_tipo_tela: insumo?.descripcion || "NO APLICA"
-                        }));
-                    });
-                    return [...antes, ...nuevas, ...despues];
+                    return [...antes, ...nuevas.flat(), ...despues];
                 });
             }
         } catch {
-            // lote no encontrado o error de red
+            // código no encontrado o error de red
         }
     };
 
@@ -115,6 +240,23 @@ export default function Registro() {
     const removeRow2 = (index) => {
         if (rows2.length === 1) return;
         setRows2(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const completarLoteMateriaPrima = async (codigo, index, setter) => {
+        const codigos = extraerCodigosTela(codigo);
+        if (!codigos.length) return;
+
+        const lotesRespuesta = await Promise.all(
+            codigos.map(async (codigoTela) => {
+                const lotes = await obtenerLotesMateriaPrima(codigoTela);
+                return Array.isArray(lotes) ? lotes.filter(Boolean) : [];
+            })
+        );
+
+        const lotesUnicos = [...new Set(lotesRespuesta.flat())];
+        if (!lotesUnicos.length) return;
+
+        setter(prev => prev.map((row, i) => i === index ? { ...row, lote_materia_prima: lotesUnicos.join(' / ') } : row));
     };
 
     const onRowChange = (index, e) => {
@@ -345,11 +487,15 @@ export default function Registro() {
                             </thead>
                             <tbody>
                                 {rows.map((row, index) => (
-                                    <tr key={index}>
+                                    <tr key={row.id || index}>
                                         <td><input type="date" name="fecha" value={row.fecha} onChange={(e) => onRowChange(index, e)} className="td-input-fecha" /></td>
                                         <td><input type="text" name="lote_materia_prima" value={row.lote_materia_prima} onChange={(e) => onRowChange(index, e)} className="td-input" /></td>
-                                        <td><input type="text" name="codigo" value={row.codigo} onChange={(e) => onRowChange(index, e)} onBlur={(e) => buscarProductosPorLote(e.target.value, index, setRows)} placeholder="Ingresa Ej: EQE-047" className="td-input-codigo" readOnly={Boolean(row.cf)} /></td>
-                                        <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange(index, e)} className="td-input-cf" /></td>
+                                        <td><input type="text" name="codigo" value={row.codigo} onChange={(e) => onRowChange(index, e)} onBlur={async (e) => {
+                                            const valor = e.target.value;
+                                            await completarLoteMateriaPrima(valor, index, setRows);
+                                            buscarProductosPorLote(valor, index, setRows, 'codigo');
+                                        }} placeholder="Ej: EQE-047" className="td-input-codigo" readOnly={Boolean(row.cf)} /></td>
+                                        <td><input type="text" name="cf" value={row.cf} placeholder="Ej: CF-CAP-001" onChange={(e) => onRowChange(index, e)} onBlur={(e) => buscarProductosPorLote(e.target.value, index, setRows, 'cf')} className="td-input-cf" /></td>
                                         <td><input type="text" name="producto" value={row.producto} onChange={(e) => onRowChange(index, e)} className="td-input td-input-producto" placeholder="Autocompletado automático" /></td>
                                         <td><input type="text" name="numero_importacion" value={row.numero_importacion} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" /></td>
                                         <td><input type="number" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" /></td>
@@ -395,11 +541,15 @@ export default function Registro() {
                             </thead>
                             <tbody>
                                 {rows2.map((row, index) => (
-                                    <tr key={index}>
+                                    <tr key={row.id || index}>
                                         <td><input type="date" name="fecha" value={row.fecha} onChange={(e) => onRowChange2(index, e)} className="td-input-fecha" /></td>
                                         <td><input type="text" name="lote_materia_prima" value={row.lote_materia_prima} onChange={(e) => onRowChange2(index, e)} className="td-input" /></td>
-                                        <td><input type="text" name="codigo" value={row.codigo} onChange={(e) => onRowChange2(index, e)} onBlur={(e) => buscarProductosPorLote(e.target.value, index, setRows2)} placeholder="Ingresa Ej: EQE-047" className="td-input-codigo" readOnly={Boolean(row.cf)} /></td>
-                                        <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange2(index, e)} className="td-input-cf" /></td>
+                                        <td><input type="text" name="codigo" value={row.codigo} onChange={(e) => onRowChange2(index, e)} onBlur={async (e) => {
+                                            const valor = e.target.value;
+                                            await completarLoteMateriaPrima(valor, index, setRows2);
+                                            buscarProductosPorLote(valor, index, setRows2, 'codigo');
+                                        }} placeholder="Ingresa Ej: EQE-047" className="td-input-codigo" readOnly={Boolean(row.cf)} /></td>
+                                        <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange2(index, e)} onBlur={(e) => buscarProductosPorLote(e.target.value, index, setRows2, 'cf')} className="td-input-cf" /></td>
                                         <td><input type="text" name="producto" value={row.producto} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-producto td-input-readonly" readOnly placeholder="Autocompletado automático" /></td>
                                         <td><input type="text" name="numero_importacion" value={row.numero_importacion} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" /></td>
                                         <td><input type="number" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" /></td>

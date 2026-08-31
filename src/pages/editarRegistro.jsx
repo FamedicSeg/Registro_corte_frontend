@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api } from "../services/api";
+import { api, obtenerLotesMateriaPrima } from "../services/api";
 import "../styles/registro.css";
 import logoSafemed from "../assets/safemedic.png";
 import { toUpperCase, shouldUpperCase } from "../utils/textUtils";
 import ModalRechazo from "../components/ModalRechazo";
+
+let rowSequence = 0;
+
+const createRowId = () => {
+  rowSequence += 1;
+  return `row-${rowSequence}`;
+};
 
 export default function EditarRegistro() {
   const nav = useNavigate();
@@ -27,8 +34,8 @@ export default function EditarRegistro() {
   const esSupervisor = user?.rol === "SUPERVISOR DE CORTE";
 
   const [form, setForm] = useState(INITIAL_FORM);
-  const [rows, setRows]   = useState([{ ...INITIAL_ROW }]);
-  const [rows2, setRows2] = useState([{ ...INITIAL_ROW }]);
+  const [rows, setRows]   = useState([{ ...INITIAL_ROW, id: "row-inicial-1" }]);
+  const [rows2, setRows2] = useState([{ ...INITIAL_ROW, id: "row-inicial-2" }]);
   const [cargando, setCargando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [verificando, setVerificando] = useState(false);
@@ -37,6 +44,16 @@ export default function EditarRegistro() {
   
   const [responsables, setResponsables] = useState([]);
   const [lideresFiltrados, setLideresFiltrados] = useState([]);
+
+  const opcionesResponsables = [...new Set([
+    ...(form.responsable ? [form.responsable] : []),
+    ...responsables,
+  ])];
+
+  const opcionesLideres = [...new Set([
+    ...(form.responsable_modulo ? [form.responsable_modulo] : []),
+    ...lideresFiltrados,
+  ])];
 
   // Cargar lista de responsables (se ejecuta una vez)
   useEffect(() => {
@@ -115,7 +132,7 @@ export default function EditarRegistro() {
     const v = shouldUpperCase(name) ? toUpperCase(value) : value;
     setRows(prev => prev.map((r, i) => i === index ? { ...r, [name]: v } : r));
   };
-  const addRow    = () => setRows(prev => [...prev, { ...INITIAL_ROW }]);
+  const addRow    = () => setRows(prev => [...prev, { ...INITIAL_ROW, id: createRowId() }]);
   const removeRow = (i) => { if (rows.length > 1) setRows(prev => prev.filter((_, idx) => idx !== i)); };
 
   const onRowChange2 = (index, e) => {
@@ -123,33 +140,167 @@ export default function EditarRegistro() {
     const v = shouldUpperCase(name) ? toUpperCase(value) : value;
     setRows2(prev => prev.map((r, i) => i === index ? { ...r, [name]: v } : r));
   };
-  const addRow2    = () => setRows2(prev => [...prev, { ...INITIAL_ROW }]);
+  const addRow2    = () => setRows2(prev => [...prev, { ...INITIAL_ROW, id: createRowId() }]);
   const removeRow2 = (i) => { if (rows2.length > 1) setRows2(prev => prev.filter((_, idx) => idx !== i)); };
 
-  const buscarProductosPorLote = async (codigo, rowIndex, setter) => {
-    if (!codigo.trim()) return;
+  const esCodigoCf = (codigo = "") => {
+    const valor = String(codigo || "").trim().toUpperCase();
+    return /^CF(?:[-\s_]*[A-Z0-9]+)+$/.test(valor);
+  };
+
+  const obtenerInsumosDelCf = (cfItem) => {
+    if (!cfItem) return [null];
+
+    const raw = cfItem.insumos || cfItem.insumo || cfItem.detalle?.insumos || cfItem.detalle?.insumo || [];
+
+    if (Array.isArray(raw)) return raw.length ? raw : [null];
+    if (raw) return [raw];
+    return [null];
+  };
+
+  const normalizarInsumos = (insumos = []) => {
+    const lista = obtenerInsumosDelCf({ insumos });
+    return lista.filter(Boolean);
+  };
+
+  const extraerCodigosTela = (valor = "") => {
+    const texto = String(valor || "").trim();
+    if (!texto) return [];
+
+    const partes = texto.split(/[/|,]/).map(item => item.trim()).filter(Boolean);
+    const codigos = partes.flatMap(item => item.split(/\s+/).filter(Boolean));
+    return [...new Set(codigos.filter(item => /^TEL/i.test(item)))];
+  };
+
+  const poblarLotesDesdeTipoTela = async (tipoTela = "", setter, rowIndex) => {
+    const codigos = extraerCodigosTela(tipoTela);
+    if (!codigos.length) return;
+
+    const lotesRespuesta = await Promise.all(
+      codigos.map(async (codigoTela) => {
+        const resultados = await obtenerLotesMateriaPrima(codigoTela);
+        return Array.isArray(resultados) ? resultados.filter(Boolean) : [];
+      })
+    );
+
+    const lotesUnicos = [...new Set(lotesRespuesta.flat())];
+    if (!lotesUnicos.length) return;
+
+    setter(prev => prev.map((row, i) => i === rowIndex ? { ...row, lote_materia_prima: lotesUnicos.join(' / ') } : row));
+  };
+
+  const buscarProductosPorLote = async (codigo, rowIndex, setter, origen = "codigo") => {
+    const codigoBuscado = String(codigo || "").trim();
+    if (!codigoBuscado) return;
+
     try {
-      const { data } = await api.post("/api/onedrive/buscar-productos-por-lote", { codigo });
-      if (data.data?.length > 0) {
-        setter(prev => {
-          const filaOrigen = prev[rowIndex] || INITIAL_ROW;
-          const nuevas = data.data.flatMap(cfItem => {
-            const insumos = cfItem.insumos?.length ? cfItem.insumos : [null];
-            return insumos.map(insumo => ({
+      if (esCodigoCf(codigoBuscado)) {
+        const { data } = await api.post("/api/onedrive/buscar-producto", { productoId: codigoBuscado });
+        const cfItem = data?.data && typeof data.data === 'object' && !Array.isArray(data.data)
+          ? data.data
+          : Array.isArray(data?.data)
+            ? data.data.find(item => String(item.codigo || item.cf || "").toUpperCase() === codigoBuscado.toUpperCase()) || data.data[0]
+            : data?.item || data || null;
+
+        if (!cfItem) return;
+
+        const insumos = normalizarInsumos(cfItem.insumos || []);
+        const tipoTela = insumos.map(item => item.codigo || "NO APLICA").join(' / ') || 'NO APLICA';
+        const descripcionTela = insumos.map(item => item.descripcion || item.nombre || "").filter(Boolean).join(' / ') || 'NO APLICA';
+
+        if (insumos.length > 1 && origen === 'cf') {
+          const filaOrigen = rows[rowIndex] || INITIAL_ROW;
+          const nuevas = await Promise.all(insumos.map(async (insumo, index) => {
+            const lotes = await obtenerLotesMateriaPrima(insumo?.codigo || "");
+            const loteFinal = Array.isArray(lotes) ? [...new Set(lotes.filter(Boolean))].join(' / ') : "";
+
+            return {
               ...INITIAL_ROW,
+              id: createRowId(),
               fecha: filaOrigen.fecha,
-              lote_materia_prima: filaOrigen.lote_materia_prima,
-              cf: cfItem.codigo,
-              numero_importacion: filaOrigen.numero_importacion,
-              codigo,
-              producto: cfItem.descripcion || cfItem.codigo || "",
+              lote_materia_prima: loteFinal,
+              cf: cfItem.codigo || codigoBuscado,
+              codigo: filaOrigen.codigo || codigoBuscado,
+              producto: cfItem.descripcion || cfItem.nombre || cfItem.producto || cfItem.codigo || "",
               tipo_tela: insumo?.codigo || "NO APLICA",
-              descripcion_tipo_tela: insumo?.descripcion || "NO APLICA",
-            }));
+              descripcion_tipo_tela: insumo?.descripcion || insumo?.nombre || "NO APLICA",
+              numero_importacion: filaOrigen.numero_importacion,
+              ...(index === 0 ? { cantidad_tendidos: filaOrigen.cantidad_tendidos, cantidad_unidades: filaOrigen.cantidad_unidades, numero_rollo: filaOrigen.numero_rollo, fecha_entrega: filaOrigen.fecha_entrega, cantidad_entregada: filaOrigen.cantidad_entregada } : {})
+            };
+          }));
+
+          setter(prev => {
+            const antes = prev.slice(0, rowIndex);
+            const despues = prev.slice(rowIndex + 1);
+            return [...antes, ...nuevas, ...despues];
           });
+          return;
+        }
+
+        setter(prev => prev.map((row, i) => {
+          if (i !== rowIndex) return row;
+
+          const codigoActual = origen === 'cf' ? row.codigo : codigoBuscado;
+
+          return {
+            ...row,
+            cf: cfItem.codigo || codigoBuscado,
+            codigo: codigoActual,
+            producto: cfItem.descripcion || cfItem.nombre || cfItem.producto || cfItem.codigo || "",
+            tipo_tela: tipoTela,
+            descripcion_tipo_tela: descripcionTela,
+          };
+        }));
+
+        await poblarLotesDesdeTipoTela(tipoTela, setter, rowIndex);
+        return;
+      }
+
+      const { data } = await api.post("/api/onedrive/buscar-productos-por-lote", { codigo: codigoBuscado });
+      const items = Array.isArray(data?.data) ? data.data : [];
+
+      if (items.length > 0) {
+        const nuevas = await Promise.all(items.flatMap(async (cfItem) => {
+          const insumos = normalizarInsumos(cfItem.insumos || []);
+          if (insumos.length === 0) {
+            return [{
+              ...INITIAL_ROW,
+              id: createRowId(),
+              fecha: "",
+              lote_materia_prima: "",
+              cf: cfItem.codigo,
+              codigo: codigoBuscado,
+              producto: cfItem.descripcion || cfItem.codigo || "",
+              tipo_tela: "NO APLICA",
+              descripcion_tipo_tela: "NO APLICA",
+            }];
+          }
+
+          const filasPorCf = await Promise.all(insumos.map(async (insumo) => {
+            const codigoTela = insumo?.codigo || "";
+            const lotes = codigoTela ? await obtenerLotesMateriaPrima(codigoTela) : [];
+            const loteFinal = Array.isArray(lotes) ? [...new Set(lotes.filter(Boolean))].join(' / ') : "";
+
+            return {
+              ...INITIAL_ROW,
+              id: createRowId(),
+              fecha: "",
+              lote_materia_prima: loteFinal,
+              cf: cfItem.codigo,
+              codigo: codigoBuscado,
+              producto: cfItem.descripcion || cfItem.codigo || "",
+              tipo_tela: codigoTela || "NO APLICA",
+              descripcion_tipo_tela: insumo?.descripcion || insumo?.nombre || "NO APLICA",
+            };
+          }));
+
+          return filasPorCf;
+        }));
+
+        setter(prev => {
           return [
             ...prev.slice(0, rowIndex),
-            ...nuevas,
+            ...nuevas.flat(),
             ...prev.slice(rowIndex + 1),
           ];
         });
@@ -329,8 +480,8 @@ export default function EditarRegistro() {
               <label htmlFor="responsable_modulo">RESPONSABLE MÓDULO:</label>
               <select id="responsable_modulo" name="responsable_modulo" value={form.responsable_modulo || ""} onChange={onChange} disabled={!form.modulo} className="selector-responsable-modulo" required>
                 <option value="">SELECCIONA EL RESPONSABLE DEL MÓDULO...</option>
-                {lideresFiltrados.map((lider, idx) => (
-                  <option key={idx} value={lider}>
+                {opcionesLideres.map((lider, idx) => (
+                  <option key={`${lider}-${idx}`} value={lider}>
                     {lider}
                   </option>
                 ))}
@@ -345,8 +496,8 @@ export default function EditarRegistro() {
               <label htmlFor="responsable">RESPONSABLE:</label>
               <select id="responsable" name="responsable" value={form.responsable} onChange={onChange} className="selector-responsable" required>
                 <option value="">SELECCIONA AL RESPONSABLE...</option>
-                {responsables.map((resp, idx) => (
-                  <option key={idx} value={resp}>
+                {opcionesResponsables.map((resp, idx) => (
+                  <option key={`${resp}-${idx}`} value={resp}>
                     {resp}
                   </option>
                 ))}
@@ -396,8 +547,8 @@ export default function EditarRegistro() {
                   <tr key={index}>
                     <td><input type="date" name="fecha" value={row.fecha} onChange={(e) => onRowChange(index, e)} className="td-input-fecha" disabled={!puedeEditar} /></td>
                     <td><input type="text" name="lote_materia_prima" value={row.lote_materia_prima} onChange={(e) => onRowChange(index, e)} className="td-input" disabled={!puedeEditar} /></td>
-                    <td><input type="text" name="codigo" value={row.codigo} placeholder="Ingresa Ej: EQE-047" onChange={(e) => onRowChange(index, e)} onBlur={(e) => puedeEditar && buscarProductosPorLote(e.target.value, index, setRows)} className="td-input-codigo" disabled={!puedeEditar} /></td>
-                    <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange(index, e)} className="td-input-cf" disabled={!puedeEditar} readOnly /></td>
+                    <td><input type="text" name="codigo" value={row.codigo} placeholder="Ej: EQE-047" onChange={(e) => onRowChange(index, e)} onBlur={(e) => puedeEditar && buscarProductosPorLote(e.target.value, index, setRows, 'codigo')} className="td-input-codigo" disabled={!puedeEditar} /></td>
+                    <td><input type="text" name="cf" value={row.cf}placeholder="Ej:CF-CAP-001" onChange={(e) => onRowChange(index, e)} onBlur={(e) => puedeEditar && buscarProductosPorLote(e.target.value, index, setRows, 'cf')} className="td-input-cf" disabled={!puedeEditar} /></td>
                     <td><input type="text" name="producto" value={row.producto} onChange={(e) => onRowChange(index, e)} className="td-input td-input-producto" disabled={!puedeEditar} /></td>
                     <td><input type="text" name="numero_importacion" value={row.numero_importacion} onChange={(e) => onRowChange(index, e)} className="td-input" disabled={!puedeEditar} /></td>
                     <td><input type="number" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange(index, e)} className="td-input td-input-num" min="0" disabled={!puedeEditar} /></td>
@@ -438,8 +589,8 @@ export default function EditarRegistro() {
                   <tr key={index}>
                     <td><input type="date" name="fecha" value={row.fecha} onChange={(e) => onRowChange2(index, e)} className="td-input-fecha" disabled={!puedeEditar} /></td>
                     <td><input type="text" name="lote_materia_prima" value={row.lote_materia_prima} onChange={(e) => onRowChange2(index, e)} className="td-input" disabled={!puedeEditar} /></td>
-                    <td><input type="text" name="codigo" value={row.codigo} placeholder="Ingresa Ej: EQE-047" onChange={(e) => onRowChange2(index, e)} onBlur={(e) => puedeEditar && buscarProductosPorLote(e.target.value, index, setRows2)} className="td-input-codigo" disabled={!puedeEditar} /></td>
-                    <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange2(index, e)} className="td-input-cf" disabled={!puedeEditar}/></td>
+                    <td><input type="text" name="codigo" value={row.codigo} placeholder="Ingresa Ej: EQE-047" onChange={(e) => onRowChange2(index, e)} onBlur={(e) => puedeEditar && buscarProductosPorLote(e.target.value, index, setRows2, 'codigo')} className="td-input-codigo" disabled={!puedeEditar} /></td>
+                    <td><input type="text" name="cf" value={row.cf} onChange={(e) => onRowChange2(index, e)} onBlur={(e) => puedeEditar && buscarProductosPorLote(e.target.value, index, setRows2, 'cf')} className="td-input-cf" disabled={!puedeEditar}/></td>
                     <td><input type="text" name="producto" value={row.producto} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-producto" disabled={!puedeEditar} /></td>
                     <td><input type="text" name="numero_importacion" value={row.numero_importacion} onChange={(e) => onRowChange2(index, e)} className="td-input" disabled={!puedeEditar}/></td>
                     <td><input type="number" name="cantidad_tendidos" value={row.cantidad_tendidos} onChange={(e) => onRowChange2(index, e)} className="td-input td-input-num" min="0" disabled={!puedeEditar} /></td>

@@ -88,6 +88,20 @@ export const buscarProducto = async (productoId) => {
     }
 };
 
+// Obtener lote de materia prima desde el Excel de OneDrive, dado el código TEL
+export const obtenerLotesMateriaPrima = async (codigo) => {
+    try {
+        if (!codigo || !String(codigo).trim()) return [];
+        const response = await api.get('/api/onedrive/lote-material-prima', {
+            params: { codigo: String(codigo).trim() }
+        });
+        return Array.isArray(response.data?.data) ? response.data.data : [];
+    } catch (error) {
+        console.error('Error al obtener lotes de materia prima:', error);
+        return [];
+    }
+};
+
 // Guardar registro de corte en el archivo de Excel una vez haya sido verificado
 export const guardarRegistroCorte = async (sheetaName, registroData) => {
     try{
