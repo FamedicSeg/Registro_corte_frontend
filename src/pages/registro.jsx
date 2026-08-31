@@ -69,7 +69,7 @@ export default function Registro() {
 
     const esCodigoCf = (codigo = "") => {
         const valor = String(codigo || "").trim().toUpperCase();
-        return /^CF(?:[-\s_]*[A-Z0-9]+)+$/.test(valor);
+        return /^CF(?:[-\s_]*[\p{L}\p{N}]+)+$/u.test(valor);
     };
 
     const obtenerInsumosDelCf = (cfItem) => {
@@ -87,11 +87,40 @@ export default function Registro() {
         return lista.filter(Boolean);
     };
 
+    const obtenerNombreCf = (cfItem = {}) => {
+        const codigoCf = String(cfItem.codigo || "").trim();
+        const candidatos = [
+            cfItem.displayName,
+            cfItem.descripcion,
+            cfItem.producto,
+            cfItem.nombre,
+            cfItem.name,
+            cfItem.Description,
+            cfItem.Name,
+        ];
+
+        const nombreValido = candidatos.find((valor) => {
+            const texto = String(valor ?? "").trim();
+            if (!texto) return false;
+
+            const textoUpper = texto.toUpperCase();
+            const codigoUpper = codigoCf.toUpperCase();
+
+            if (textoUpper === codigoUpper) return false;
+            if (textoUpper.startsWith('TEL')) return false;
+            if (textoUpper.startsWith('CF') && textoUpper === codigoUpper) return false;
+
+            return true;
+        });
+
+        return nombreValido || "";
+    };
+
     const extraerCodigosTela = (valor = "") => {
         const texto = String(valor || "").trim();
         if (!texto) return [];
 
-        const partes = texto.split(/[\/|,]/).map(item => item.trim()).filter(Boolean);
+        const partes = texto.split(/[/|,]/).map(item => item.trim()).filter(Boolean);
         const codigos = partes.flatMap(item => item.split(/\s+/).filter(Boolean));
         return [...new Set(codigos.filter(item => /^TEL/i.test(item)))];
     };
@@ -128,6 +157,7 @@ export default function Registro() {
 
                 if (!cfItem) return;
 
+                const nombreCf = obtenerNombreCf(cfItem) || codigoBuscado;
                 const insumos = normalizarInsumos(cfItem.insumos || []);
                 const tipoTela = insumos.map(item => item.codigo || "NO APLICA").join(' / ') || 'NO APLICA';
                 const descripcionTela = insumos.map(item => item.descripcion || item.nombre || "").filter(Boolean).join(' / ') || 'NO APLICA';
@@ -145,7 +175,7 @@ export default function Registro() {
                             lote_materia_prima: loteFinal,
                             cf: cfItem.codigo || codigoBuscado,
                             codigo: filaOrigen.codigo || codigoBuscado,
-                            producto: cfItem.descripcion || cfItem.nombre || cfItem.producto || cfItem.codigo || "",
+                            producto: nombreCf,
                             tipo_tela: insumo?.codigo || "NO APLICA",
                             descripcion_tipo_tela: insumo?.descripcion || insumo?.nombre || "NO APLICA",
                             numero_importacion: filaOrigen.numero_importacion,
@@ -170,7 +200,7 @@ export default function Registro() {
                         ...row,
                         cf: cfItem.codigo || codigoBuscado,
                         codigo: codigoActual,
-                        producto: cfItem.descripcion || cfItem.nombre || cfItem.producto || cfItem.codigo || "",
+                        producto: nombreCf,
                         tipo_tela: tipoTela,
                         descripcion_tipo_tela: descripcionTela,
                     };
@@ -185,6 +215,7 @@ export default function Registro() {
 
             if (items.length > 0) {
                 const nuevas = await Promise.all(items.flatMap(async (cfItem) => {
+                    const nombreCf = obtenerNombreCf(cfItem) || cfItem.codigo || "";
                     const insumos = normalizarInsumos(cfItem.insumos || []);
                     if (insumos.length === 0) {
                         return [{
@@ -194,7 +225,7 @@ export default function Registro() {
                             lote_materia_prima: "",
                             cf: cfItem.codigo,
                             codigo: codigoBuscado,
-                            producto: cfItem.descripcion || cfItem.codigo || "",
+                            producto: nombreCf,
                             tipo_tela: "NO APLICA",
                             descripcion_tipo_tela: "NO APLICA",
                         }];
@@ -212,7 +243,7 @@ export default function Registro() {
                             lote_materia_prima: loteFinal,
                             cf: cfItem.codigo,
                             codigo: codigoBuscado,
-                            producto: cfItem.descripcion || cfItem.codigo || "",
+                            producto: nombreCf,
                             tipo_tela: codigoTela || "NO APLICA",
                             descripcion_tipo_tela: insumo?.descripcion || insumo?.nombre || "NO APLICA",
                         };

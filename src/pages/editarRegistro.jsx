@@ -163,6 +163,26 @@ export default function EditarRegistro() {
     return lista.filter(Boolean);
   };
 
+  const obtenerNombreCf = (cfItem = {}) => {
+    const codigoCf = String(cfItem.codigo || "").trim();
+    const candidatos = [
+      cfItem.displayName,
+      cfItem.descripcion,
+      cfItem.producto,
+      cfItem.nombre,
+      cfItem.name,
+      cfItem.Description,
+      cfItem.Name,
+    ];
+
+    const nombreValido = candidatos.find((valor) => {
+      const texto = String(valor ?? "").trim();
+      return texto && texto.toUpperCase() !== codigoCf.toUpperCase();
+    });
+
+    return nombreValido || "";
+  };
+
   const extraerCodigosTela = (valor = "") => {
     const texto = String(valor || "").trim();
     if (!texto) return [];
@@ -204,6 +224,7 @@ export default function EditarRegistro() {
 
         if (!cfItem) return;
 
+        const nombreCf = obtenerNombreCf(cfItem) || codigoBuscado;
         const insumos = normalizarInsumos(cfItem.insumos || []);
         const tipoTela = insumos.map(item => item.codigo || "NO APLICA").join(' / ') || 'NO APLICA';
         const descripcionTela = insumos.map(item => item.descripcion || item.nombre || "").filter(Boolean).join(' / ') || 'NO APLICA';
@@ -221,7 +242,7 @@ export default function EditarRegistro() {
               lote_materia_prima: loteFinal,
               cf: cfItem.codigo || codigoBuscado,
               codigo: filaOrigen.codigo || codigoBuscado,
-              producto: cfItem.descripcion || cfItem.nombre || cfItem.producto || cfItem.codigo || "",
+              producto: nombreCf,
               tipo_tela: insumo?.codigo || "NO APLICA",
               descripcion_tipo_tela: insumo?.descripcion || insumo?.nombre || "NO APLICA",
               numero_importacion: filaOrigen.numero_importacion,
@@ -261,6 +282,7 @@ export default function EditarRegistro() {
 
       if (items.length > 0) {
         const nuevas = await Promise.all(items.flatMap(async (cfItem) => {
+          const nombreCf = obtenerNombreCf(cfItem) || cfItem.codigo || "";
           const insumos = normalizarInsumos(cfItem.insumos || []);
           if (insumos.length === 0) {
             return [{
@@ -270,7 +292,7 @@ export default function EditarRegistro() {
               lote_materia_prima: "",
               cf: cfItem.codigo,
               codigo: codigoBuscado,
-              producto: cfItem.descripcion || cfItem.codigo || "",
+              producto: nombreCf,
               tipo_tela: "NO APLICA",
               descripcion_tipo_tela: "NO APLICA",
             }];
@@ -288,7 +310,7 @@ export default function EditarRegistro() {
               lote_materia_prima: loteFinal,
               cf: cfItem.codigo,
               codigo: codigoBuscado,
-              producto: cfItem.descripcion || cfItem.codigo || "",
+              producto: nombreCf,
               tipo_tela: codigoTela || "NO APLICA",
               descripcion_tipo_tela: insumo?.descripcion || insumo?.nombre || "NO APLICA",
             };
