@@ -399,6 +399,7 @@ export default function Registro() {
                             <option value="VARIOS 1">VARIOS 1</option>
                             <option value="VARIOS 2">VARIOS 2</option>
                             <option value="VARIOS 3">VARIOS 3</option>
+                            <option value="PECHERAS">PECHERAS</option>
                             <option value="ESTAMPADO">ESTAMPADO</option>
                             <option value="BOTAS SIMPLES">BOTAS SIMPLES</option>
                             <option value="SPA">SPA</option>
